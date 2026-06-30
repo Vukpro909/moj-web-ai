@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google UI Chat</title>
+    <style>
+        :root { --bg-color: #131314; --panel-bg: #1e1f20; --text-main: #e3e3e3; --accent: #4285f4; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background-color: var(--panel-bg); padding: 15px; text-align: center; font-size: 1.2rem; font-weight: bold; border-bottom: 1px solid #2d2f31; color: var(--accent); }
+        #key-box { background: #1a1a1a; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #2d2f31; }
+        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; word-wrap: break-word; line-height: 1.4; }
+        .user { background: #2b2a33; align-self: flex-end; }
+        .ai { background: #1e1f20; align-self: flex-start; border: 1px solid #2d2f31; }
+        #box { padding: 15px; background: #131314; display: flex; gap: 10px; }
+        input { flex: 1; background: #1e1f20; border: 1px solid #2d2f31; color: #fff; padding: 12px 20px; border-radius: 25px; outline: none; }
+        button { background: var(--accent); color: #fff; border: none; padding: 0 20px; border-radius: 25px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header>Google UI Chat</header>
+    
+    <div id="key-box">
+        <input type="password" id="api-key" placeholder="Unesi svoj Groq API ključ...">
+        <button onclick="saveKey()" style="background: #34a853;">Sačuvaj</button>
+    </div>
+
+    <div id="chat"><div class="msg ai">🤖 Ćao! Unesi ključ na vrhu i pitaj me bilo šta!</div></div>
+    
+    <div id="box">
+        <input type="text" id="inp" placeholder="Pitaj me nešto...">
+        <button onclick="send()">Pošalji</button>
+    </div>
+
+    <script>
+        const URL = "https://api.groq.com/openai/v1/chat/completions";
+        let history = [{role: "system", content: "Odgovaraj kratko na srpskom."}];
+
+        window.onload = function() {
+            const savedKey = localStorage.getItem("groq_api_key");
+            if (savedKey) {
+                document.getElementById("api-key").value = savedKey;
+            }
+        }
+
+        function saveKey() {
+            const key = document.getElementById("api-key").value.trim();
+            if (key) {
+                localStorage.setItem("groq_api_key", key);
+                alert("Ključ je bezbedno sačuvan u tvom brauzeru!");
+            }
+        }
+
+        function show(txt, s) {
+            const d = document.createElement("div");
+            d.className = "msg " + s;
+            d.innerText = txt;
+            document.getElementById("chat").appendChild(d);
+            document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+        }
+
+        async function send() {
+            const key = localStorage.getItem("groq_api_key") || document.getElementById("api-key").value.trim();
+            if (!key) {
+                alert("Prvo moraš uneti i sačuvati svoj Groq API ključ!");
+                return;
+            }
+
+            const i = document.getElementById("inp");
+            const v = i.value.trim();
+            if (!v) return;
+
+            show(v, "user");
+            i.value = "";
+            history.push({role: "user", content: v});
+
+            try {
+                const r = await fetch(URL, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${key}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ model: "llama3-8b-8192", messages: history })
+                });
+                const d = await r.json();
+                const t = d.choices[0].message.content;
+                show(t, "ai");
+                history.push({role: "assistant", content: t});
+            } catch(e) {
+                show("Greška. Proveri ključ ili internet konekciju.", "ai");
+            }
+        }
+    </script>
+</body>
+</html>
+
